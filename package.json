@@ -1,5 +1,5 @@
 {
-  "name": "georender-geojson",
+  "name": "@rubenrodriguez/georender-geojson",
   "version": "1.2.0",
   "description": "convert between geojson and georender",
   "bin": {
