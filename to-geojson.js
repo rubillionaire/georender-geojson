@@ -1,5 +1,5 @@
-const features = require('georender-pack/features.json')
-const decode = require('georender-pack/decode')
+const features = require('@rubenrodriguez/georender-pack/features.json')
+const decode = require('@rubenrodriguez/georender-pack/decode')
 const pointInPolygon = require('point-in-polygon')
 
 module.exports = function (buffers) {
