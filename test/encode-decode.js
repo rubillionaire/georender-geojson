@@ -146,12 +146,11 @@ test('decode encode line', function (t) {
     }]
   }
   const decoded = toGeoJSON(toGeorender(fc, { includeAllTags: true }))
-  // console.log(decoded.features[0])
   t.deepEqual(decoded, fc, 'feature collection : line matches')
   t.end()
 })
 
-test('decode encode multi-line', function (t) {
+test('warning: decode/encode MultiLineString does not preserve shape', function (t) {
   const fc = {
     type: 'FeatureCollection',
     features: [{
@@ -169,8 +168,13 @@ test('decode encode multi-line', function (t) {
       }
     }]
   }
+  const actualGeometry = {
+    type: 'LineString',
+    coordinates: fc.features[0].geometry.coordinates.flat()
+  }
   const decoded = toGeoJSON(toGeorender(fc, { includeAllTags: true }))
-  t.notDeepEqual(decoded, fc, 'fails: MultiLineString does not match, encoding does not preserve this information, and flattens into a single LineString.')
+  fc.features[0].geometry = actualGeometry
+  t.deepEqual(decoded, fc, 'MultiLineString does not survive encode / decode cycle.')
   t.end()
 })
 
