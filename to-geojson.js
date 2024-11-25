@@ -76,20 +76,31 @@ function decodeArea(features, area) {
   const decodeTagsArea = decodeTags('area')
   const getTags = decodeTagsArea(area)
 
+  const newFeature = ({ i, coordinates, isMulti }) => {
+    const properties = Object.assign(getFeatureType(area.types[i-1]), getTags(i-1))
+    const removeRingWidow = (c) => {
+      const cl0 = c[c.length - 1]
+      const cl1 = cl0[cl0.length - 1]
+      if (!isMulti && cl0.length === 0) c.splice(-1)
+      if (isMulti && cl1.length === 0) c[c.length - 1].splice(-1)
+      return c
+    }
+    return {
+      type: 'Feature',
+      properties,
+      geometry: {
+        type: isMulti ? 'MultiPolygon' : 'Polygon',
+        coordinates: removeRingWidow(isMulti ? coordinates : coordinates[0]),
+      }
+    }
+  }
+
   for (var i = 0; i < area.types.length; i++) {
     var id = area.ids[i]
     if (i > 0 && id !== prevId) {
       // todo: add labels to properties
       ring.push([ring[0][0],ring[0][1]])
-      const properties = Object.assign(getFeatureType(area.types[i-1]), getTags(i-1))
-      features.push({
-        type: 'Feature',
-        properties,
-        geometry: {
-          type: isMulti ? 'MultiPolygon' : 'Polygon',
-          coordinates: isMulti ? coordinates : coordinates[0],
-        }
-      })
+      features.push(newFeature({ i, isMulti, coordinates }))
       isMulti = false
       ring = []
       coordinates = [[ring]]
@@ -117,15 +128,7 @@ function decodeArea(features, area) {
     ring.push([ring[0][0],ring[0][1]])
   }
   if (coordinates[0].length > 0 && coordinates[0][0].length > 0) {
-    const properties = Object.assign(getFeatureType(area.types[i-1]), getTags(i-1))
-    features.push({
-      type: 'Feature',
-      properties,
-      geometry: {
-        type: isMulti ? 'MultiPolygon' : 'Polygon',
-        coordinates: isMulti ? coordinates : coordinates[0],
-      }
-    })
+    features.push(newFeature({ i, isMulti, coordinates }))
   }
 }
 
