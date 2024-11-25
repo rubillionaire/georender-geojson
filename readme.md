@@ -2,7 +2,7 @@
 
 convert between the [georender][] format and geojson
 
-[georender]: https://github.com/peermaps/docs/blob/master/georender.md
+[georender]: https://github.com/rubillionaire/georender-pack/blob/master/schema.md
 
 # usage
 
@@ -37,7 +37,7 @@ geojson to georender:
 
 ``` js
 var lpb = require('length-prefixed-buffers')
-var toGeorender = require('georender-geojson/to-georender')
+var toGeorender = require('@rubenrodriguez/georender-geojson/to-georender')
 var encoded = toGeorender({
   type: 'FeatureCollection',
   features: [
@@ -71,12 +71,12 @@ console.log(JSON.stringify(decoded))
 # api
 
 ``` js
-var toGeorender = require('georender-geojson/to-georender')
-var toGeoJSON = require('georender-geojson/to-geojson')
-var { toGeorender, toGeoJSON } = require('georender-geojson')
+var toGeorender = require('@rubenrodriguez/georender-geojson/to-georender')
+var toGeoJSON = require('@rubenrodriguez/georender-geojson/to-geojson')
+var { toGeorender, toGeoJSON } = require('@rubenrodriguez/georender-geojson')
 ```
 
-## var buffers = toGeorender(geojson)
+## var buffers = toGeorender(geojson, opts)
 
 Convert an object of `geojson` data into an array of `buffers`.
 
@@ -91,5 +91,5 @@ bsd
 # install
 
 ```
-npm install georender-geojson
+npm install @rubenrodriguez/georender-geojson
 ```
