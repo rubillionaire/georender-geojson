@@ -16,7 +16,11 @@ function decodePoint(features, point) {
   const getTags = decodeTagsPoint(point)
   for (var i = 0; i < point.types.length; i++) {
     var id = point.ids[i]
-    const properties = Object.assign(getFeatureType(point.types[i]), getTags(i))
+    const properties = Object.assign(
+      getFeatureType(point.types[i]),
+      getTags(i),
+      decodeLabels(point, point.ids[i])
+    )
     features.push({
       type: 'Feature',
       properties,
@@ -35,34 +39,36 @@ function decodeLine(features, line) {
   const decodeTagsLine = decodeTags('line')
   const getTags = decodeTagsLine(line)
 
-  for (var i = 0; i < line.types.length; i++) {
+  const newFeature = ({ i, coordinates }) => {
+    const tags = getTags(i-4)
+    const labels = decodeLabels(line, line.ids[i-4])
+    const properties = Object.assign(getFeatureType(line.types[i-4]), tags, labels)
+    return {
+      type: 'Feature',
+      properties,
+      geometry: {
+        type: 'LineString',
+        coordinates,
+      },
+    }
+  }
+
+  for (var i = 0; i < line.types.length; i+=3) {
     var id = line.ids[i]
     if (i > 0 && id !== prevId) {
-      const properties = Object.assign(getFeatureType(line.types[i-1]), getTags(i-1))
-      features.push({
-        type: 'Feature',
-        properties,
-        geometry: {
-          type: 'LineString',
-          coordinates: coordinates,
-        }
-      })
+      features.push(newFeature({ i, coordinates }))
       coordinates = []
-    } else {
+    }
+    else if (line.types[i + 2] === undefined) {
+      // we have reached the end of the line
+    }
+    else {
       coordinates.push([line.positions[i*2+0], line.positions[i*2+1]])
     }
     prevId = id
   }
   if (coordinates.length > 0) {
-    const properties = Object.assign(getFeatureType(line.types[i-1]), getTags(i-1))
-    features.push({
-      type: 'Feature',
-      properties,
-      geometry: {
-        type: 'LineString',
-        coordinates: coordinates,
-      }
-    })
+    features.push(newFeature({ i, coordinates }))
   }
 }
 
@@ -77,7 +83,9 @@ function decodeArea(features, area) {
   const getTags = decodeTagsArea(area)
 
   const newFeature = ({ i, coordinates, isMulti }) => {
-    const properties = Object.assign(getFeatureType(area.types[i-1]), getTags(i-1))
+    const labels = decodeLabels(area, area.ids[i-1])
+    const tags = getTags(i-1)
+    const properties = Object.assign(getFeatureType(area.types[i-1]), tags, labels)
     const removeRingWidow = (c) => {
       const cl0 = c[c.length - 1]
       const cl1 = cl0[cl0.length - 1]
@@ -94,7 +102,6 @@ function decodeArea(features, area) {
       }
     }
   }
-
   for (var i = 0; i < area.types.length; i++) {
     var id = area.ids[i]
     if (i > 0 && id !== prevId) {
@@ -177,4 +184,20 @@ function decodeTags (type) {
 
     function noTagData () { return {} }
   }
+}
+
+function decodeLabels (data, id) {
+  const labels = {}
+  const encoded = data.labels[id]
+  if (!encoded || (Array.isArray(encoded) && encoded.length === 0)) return labels
+  for (const elabel of encoded) {
+    const [type, label] = elabel.split('=')
+    if (type === '') labels.name = label
+    else if(type.startsWith('alt:')) {
+      const [alt, lang] = type.split(':')
+      labels[`alt_name:${lang}`] = label
+    }
+    else labels[`name:${type}`] = label
+  }
+  return labels
 }
