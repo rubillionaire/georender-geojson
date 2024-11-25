@@ -1,4 +1,4 @@
-# next
+# 2.0.0
 
 - [fork] from [georender-geojson@1.2.0](https://www.npmjs.com/package/georender-geojson)
 - [package] major: georender-pack@4 -> @rubenrodriguez/georender-pack@5
