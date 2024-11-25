@@ -1,4 +1,4 @@
-const encode = require('georender-pack/encode')
+const encode = require('@rubenrodriguez/georender-pack/encode')
 const setEdges = require('./lib/set-edges.js')
 
 module.exports = encodeDynamic
@@ -32,7 +32,7 @@ function encodeFeature(feature, opts, i) {
       id: props.id || i,
       lon: g.coordinates[0],
       lat: g.coordinates[1],
-    }) ]
+    }, [], opts) ]
   } else if (g.type === 'MultiPoint') {
     return g.coordinates.map(p => encode({
       type: 'node',
@@ -40,7 +40,7 @@ function encodeFeature(feature, opts, i) {
       id: props.id || i,
       lon: p[0],
       lat: p[1],
-    }))
+    }, [], opts))
   } else if (g.type === 'LineString') {
     var cs = g.coordinates
     var deps = new Array(cs.length)
@@ -54,7 +54,7 @@ function encodeFeature(feature, opts, i) {
       tags: props,
       id: props.id || i,
       refs,
-    }, deps) ]
+    }, deps, opts) ]
   } else if (g.type === 'MultiLineString') {
     return g.coordinates.map(cs => {
       var deps = new Array(cs.length)
@@ -68,7 +68,7 @@ function encodeFeature(feature, opts, i) {
         tags: props,
         id: props.id || i,
         refs,
-      }, deps)
+      }, deps, opts)
     })
   } else if (g.type === 'Polygon') {
     var rings = g.coordinates
@@ -100,7 +100,7 @@ function encodeFeature(feature, opts, i) {
       tags: Object.assign({}, props, { type: 'multipolygon' }),
       id: props.id || i,
       members,
-    }, deps)
+    }, deps, opts)
     if (g.edges) setEdges(buf, g.edges)
     return [buf]
   } else if (g.type === 'MultiPolygon') {
@@ -136,7 +136,7 @@ function encodeFeature(feature, opts, i) {
       tags: Object.assign({}, props, { type: 'multipolygon' }),
       id: props.id || i,
       members,
-    }, deps)
+    }, deps, opts)
     if (g.edges) setEdges(buf, g.edges)
     return [buf]
   } else {

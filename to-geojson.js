@@ -1,5 +1,5 @@
-const features = require('georender-pack/features.json')
-const decode = require('georender-pack/decode')
+const features = require('@rubenrodriguez/georender-pack/features.json')
+const decode = require('@rubenrodriguez/georender-pack/decode')
 const pointInPolygon = require('point-in-polygon')
 
 module.exports = function (buffers) {
@@ -12,11 +12,18 @@ module.exports = function (buffers) {
 }
 
 function decodePoint(features, point) {
+  const decodeTagsPoint = decodeTags('point')
+  const getTags = decodeTagsPoint(point)
   for (var i = 0; i < point.types.length; i++) {
     var id = point.ids[i]
+    const properties = Object.assign(
+      getFeatureType(point.types[i]),
+      getTags(i),
+      decodeLabels(point, point.ids[i])
+    )
     features.push({
-      type: 'Point',
-      properties: getFeatureType(point.types[i]),
+      type: 'Feature',
+      properties,
       geometry: {
         type: 'Point',
         coordinates: [point.positions[i*2+0], point.positions[i*2+1]],
@@ -28,32 +35,40 @@ function decodePoint(features, point) {
 function decodeLine(features, line) {
   var prevId = null
   var coordinates = []
-  for (var i = 0; i < line.types.length; i++) {
+
+  const decodeTagsLine = decodeTags('line')
+  const getTags = decodeTagsLine(line)
+
+  const newFeature = ({ i, coordinates }) => {
+    const tags = getTags(i-4)
+    const labels = decodeLabels(line, line.ids[i-4])
+    const properties = Object.assign(getFeatureType(line.types[i-4]), tags, labels)
+    return {
+      type: 'Feature',
+      properties,
+      geometry: {
+        type: 'LineString',
+        coordinates,
+      },
+    }
+  }
+
+  for (var i = 0; i < line.types.length; i+=3) {
     var id = line.ids[i]
     if (i > 0 && id !== prevId) {
-      features.push({
-        type: 'Feature',
-        properties: getFeatureType(line.types[i-1]),
-        geometry: {
-          type: 'LineString',
-          coordinates: coordinates,
-        }
-      })
+      features.push(newFeature({ i, coordinates }))
       coordinates = []
-    } else {
+    }
+    else if (line.types[i + 2] === undefined) {
+      // we have reached the end of the line
+    }
+    else {
       coordinates.push([line.positions[i*2+0], line.positions[i*2+1]])
     }
     prevId = id
   }
   if (coordinates.length > 0) {
-    features.push({
-      type: 'Feature',
-      properties: getFeatureType(line.types[i-1]),
-      geometry: {
-        type: 'LineString',
-        coordinates: coordinates,
-      }
-    })
+    features.push(newFeature({ i, coordinates }))
   }
 }
 
@@ -63,19 +78,36 @@ function decodeArea(features, area) {
   var coordinates = [[ring]]
   var edgeCounts = getEdgeCounts(area.cells)
   var isMulti = false
+
+  const decodeTagsArea = decodeTags('area')
+  const getTags = decodeTagsArea(area)
+
+  const newFeature = ({ i, coordinates, isMulti }) => {
+    const labels = decodeLabels(area, area.ids[i-1])
+    const tags = getTags(i-1)
+    const properties = Object.assign(getFeatureType(area.types[i-1]), tags, labels)
+    const removeRingWidow = (c) => {
+      const cl0 = c[c.length - 1]
+      const cl1 = cl0[cl0.length - 1]
+      if (!isMulti && cl0.length === 0) c.splice(-1)
+      if (isMulti && cl1.length === 0) c[c.length - 1].splice(-1)
+      return c
+    }
+    return {
+      type: 'Feature',
+      properties,
+      geometry: {
+        type: isMulti ? 'MultiPolygon' : 'Polygon',
+        coordinates: removeRingWidow(isMulti ? coordinates : coordinates[0]),
+      }
+    }
+  }
   for (var i = 0; i < area.types.length; i++) {
     var id = area.ids[i]
     if (i > 0 && id !== prevId) {
       // todo: add labels to properties
       ring.push([ring[0][0],ring[0][1]])
-      features.push({
-        type: 'Feature',
-        properties: getFeatureType(area.types[i-1]),
-        geometry: {
-          type: isMulti ? 'MultiPolygon' : 'Polygon',
-          coordinates: isMulti ? coordinates : coordinates[0],
-        }
-      })
+      features.push(newFeature({ i, isMulti, coordinates }))
       isMulti = false
       ring = []
       coordinates = [[ring]]
@@ -103,14 +135,7 @@ function decodeArea(features, area) {
     ring.push([ring[0][0],ring[0][1]])
   }
   if (coordinates[0].length > 0 && coordinates[0][0].length > 0) {
-    features.push({
-      type: 'Feature',
-      properties: getFeatureType(area.types[i-1]),
-      geometry: {
-        type: isMulti ? 'MultiPolygon' : 'Polygon',
-        coordinates: isMulti ? coordinates : coordinates[0],
-      }
-    })
+    features.push(newFeature({ i, isMulti, coordinates }))
   }
 }
 
@@ -137,4 +162,42 @@ function getEdgeCounts(cells) {
 
 function edgeKey(e0, e1) {
   return e0 < e1 ? e0+','+e1 : e1+','+e0
+}
+
+function decodeTags (type) {
+  const baseFields = decode.baseFields[type]
+  return function (data) {
+    const tags = []
+    for (const key in data) {
+      if (!baseFields.includes(key)) tags.push(key)
+    }
+    
+    return tags.length > 0 ? tagsForData : noTagData
+
+    function tagsForData (i) {
+      const values = {}
+      for (const tag of tags) {
+        values[tag] = data[tag][i]
+      }
+      return values
+    }
+
+    function noTagData () { return {} }
+  }
+}
+
+function decodeLabels (data, id) {
+  const labels = {}
+  const encoded = data.labels[id]
+  if (!encoded || (Array.isArray(encoded) && encoded.length === 0)) return labels
+  for (const elabel of encoded) {
+    const [type, label] = elabel.split('=')
+    if (type === '') labels.name = label
+    else if(type.startsWith('alt:')) {
+      const [alt, lang] = type.split(':')
+      labels[`alt_name:${lang}`] = label
+    }
+    else labels[`name:${type}`] = label
+  }
+  return labels
 }

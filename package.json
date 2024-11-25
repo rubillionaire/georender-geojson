@@ -1,6 +1,6 @@
 {
-  "name": "georender-geojson",
-  "version": "1.2.0",
+  "name": "@rubenrodriguez/georender-geojson",
+  "version": "2.0.0",
   "description": "convert between geojson and georender",
   "bin": {
     "georender-geojson": "cmd.js",
@@ -8,7 +8,7 @@
     "geojson-to-georender": "cmd.js"
   },
   "dependencies": {
-    "georender-pack": "^4.0.0",
+    "@rubenrodriguez/georender-pack": "^5.1.0",
     "JSONStream": "^1.3.5",
     "length-prefixed-stream": "^2.0.0",
     "minimist": "^1.2.5",
